@@ -46,11 +46,15 @@ def insertRecords(records):
     
 @client.event
 async def on_ready():
-    print('We have logged in as {0.user}'.format(discord_client))
+    print('We have logged in as {0.user}'.format(client))
     
+def getUnpaidBalances():
+    collection.find({'paid' : False})
+    # Sum up balances per person
+
 @client.event
 async def on_message(message):
-    if message.author == discord_client.user :
+    if message.author == client.user :
         return
     # If its a DM
     if not message.guild:
