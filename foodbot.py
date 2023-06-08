@@ -36,6 +36,7 @@ def createRecord(name : str, amount : float, location : str, date : datetime, ta
                 'date': date,
                 'tax_rate': tax_rate,
                 'tip': round(tip, 2) ,
+                'subtotal' : amount,
                 'total': total,
                 'paid': paid
             }   
