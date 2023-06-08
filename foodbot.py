@@ -57,14 +57,50 @@ async def on_message(message):
         # If its the Banker
         if message.author == BANKER_ID:
             try:
-                if message.content == "invoice":
+                if message.content == "invoices":
                     # Eventually make a function that will allow me to either 
                     # 1. Select a previous name
                     # 2. Add a new name
-                    message = "Time to Send Invoices! \n \
-                    Please enter the full name of the person you wish to send the invoice to:"
-                    await message.channel.send(message)
-                    #msg = await client.wait_for('message', check=lambda message: message.author == ctx.author)
+
+                    prompt0 =  "Time to Send Invoices! \n \
+                    Please enter the full name of the place y'all ate at:"
+                    await message.channel.send(prompt0)
+                    location = await client.wait_for('message', check=lambda message: message.author == ctx.author)
+
+                    prompt1 = "Please enter the date you ate here (Ex: 03/29/2023):"
+                    await message.channel.send(prompt1)
+                    date_unformated = await client.wait_for('message', check=lambda message: message.author == ctx.author)
+
+                    date = datetime.strptime(date_unformated, "%m/%d/%Y")
+
+                    prompt2 = "Please enter how many people ate:"
+                    await message.channel.send(prompt2)
+                    amount_of_people = await client.wait_for('message', check=lambda message: message.author == ctx.author)
+                    
+                    prompt3 = "Please enter the total amount of tip:"
+                    await message.channel.send(prompt3)
+                    tip_unsplit = await client.wait_for('message', check=lambda message: message.author == ctx.author)
+
+                    tip = int(tip_unsplit)/int(amount_of_people)
+
+                    prompt4 = "Please enter the tax rate of the location (Ex: 0.1025):"
+                    await message.channel.send(prompt4)
+                    tax_rate = await client.wait_for('message', check=lambda message: message.author == ctx.author)
+                    records = []
+                    for i in range(int(amount_of_people)):
+                        prompt5 = "Please enter the full name of the person you wish to send the invoice to:"
+                        await message.channel.send(prompt5)
+                        name = await client.wait_for('message', check=lambda message: message.author == ctx.author)
+
+                        prompt6 = "Please enter the total amount (Pre-Tax) that person spent \n"
+                        await message.channel.send(prompt6)
+                        amount = await client.wait_for('message', check=lambda message: message.author == ctx.author)
+
+                        records.append(createRecord(name, amount, location, date, tax_rate, tip, False))
+
+                    insertRecords(records)
+                    post_prompt = "Invoices created and added to database!"
+                    await message.channel.send(post_prompt)
 
             except discord.errors.Forbidden:
                 pass
