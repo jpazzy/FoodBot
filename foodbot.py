@@ -32,7 +32,7 @@ def getDiscordId(name : str):
 # @param tax_rate is a decimal value(Ex: 0.1025) meaning a 10.25% Tax at that location
 # @param tip is a decimal value of that persons portion of the tip (Ex : 6.25)
 # @param paid is a boolean value of if that person already paid that tab (Default = False)
-def createRecord(name : str, amount : float, location : str, date : datetime, tax_rate : float, tip : float, paid : bool = False):
+def createRecord(name : str, amount : float, location : str, date : datetime, tax_rate : float, tip : float, paid : bool = False, amount_paid : float = 0):
     total = round(round(amount, 2) * (1 + tax_rate) + round(tip, 2) , 2)
     
     record = {  'name': name.lower(),
@@ -43,7 +43,8 @@ def createRecord(name : str, amount : float, location : str, date : datetime, ta
                 'tip': round(tip, 2) ,
                 'subtotal' : amount,
                 'total': total,
-                'paid': paid
+                'paid': paid,
+                'amount_paid': amount_paid
             }   
     return record
 
@@ -66,7 +67,6 @@ def getUnpaidBalances():
         }
     ]
     return collection.aggregate(pipeline)
-                         
 
 async def sendInvoices(channel, author):
     prompt0 =  "Time to Send Invoices! \n \
