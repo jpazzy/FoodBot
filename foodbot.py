@@ -32,7 +32,7 @@ def getDiscordId(name : str):
 # @param tax_rate is a decimal value(Ex: 0.1025) meaning a 10.25% Tax at that location
 # @param tip is a decimal value of that persons portion of the tip (Ex : 6.25)
 # @param paid is a boolean value of if that person already paid that tab (Default = False)
-def createRecord(name : str, amount : float, location : str, date : datetime, tax_rate : float, tip : float, paid : bool = False, amount_paid : float = 0):
+def createRecord(name : str, amount : float, location : str, date : datetime, tax_rate : float, tip : float, paid : bool = False, amount_paid : float = 0, balance : float = 0):
     total = round(round(amount, 2) * (1 + tax_rate) + round(tip, 2) , 2)
     
     record = {  'name': name.lower(),
@@ -44,7 +44,8 @@ def createRecord(name : str, amount : float, location : str, date : datetime, ta
                 'subtotal' : amount,
                 'total': total,
                 'paid': paid,
-                'amount_paid': amount_paid
+                'amount_paid': amount_paid,
+                'balance' : total
             }   
     return record
 
@@ -58,16 +59,33 @@ async def on_ready():
 def getUnpaidBalances():
     pipeline = [
         {
+            "$match": {
+                "paid": False
+            }
+        },
+        {
             "$group": {
                 "_id": "$name",
-                "total": {
-                    "$sum": "$total"
+                "balance" : {
+                    "$sum" : "$balance" 
                 }
             }
         }
     ]
     return collection.aggregate(pipeline)
 
+async def payOffBalance(name : str, amount : float):
+    records = collection.find({"name" : name , "paid" : False})
+    for record in records:
+        if amount >= record["balance"]:
+            # Update record
+            collection.find_one_and_update({"_id" : record["_id"]}, {"$set":{ "paid" : True, "amount_paid" : record["total"], "balance" : 0}})
+            amount -= float(record["balance"])
+        elif amount > 0:
+            # Partially update some record with the amount they paid off
+            collection.find_one_and_update({"_id" : record["_id"]}, {"$inc":{"amount_paid" : amount, "balance" : -amount}})
+            amount = 0
+            
 async def sendInvoices(channel, author):
     prompt0 =  "Time to Send Invoices! \n \
     Please enter the full name of the place y'all ate at:"
@@ -115,7 +133,7 @@ async def pingBalances(channelID):
     channel = client.get_channel(channelID)
     records = getUnpaidBalances()
     for record in records:
-        await channel.send("<@"+str(getDiscordId(record['_id'])) + "> owes $" + str(round(record['total'],2)) + "to the Bank of Justin!")
+        await channel.send("<@"+str(getDiscordId(record['_id'])) + "> owes $" + str(round((record['balance']),2)) + " to the Bank of Justin!")
 
 @client.event
 async def on_message(message):
@@ -129,6 +147,9 @@ async def on_message(message):
                 if message.content == "totals":
                     await pingBalances(CHANNEL_ID)
                         
+                if message.content == "payoff":
+                    await payOffBalance("john", 10.50)
+                    
                 if message.content == "invoices":
                     # Eventually make a function that will allow me to either 
                     # 1. Select a previous name
