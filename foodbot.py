@@ -3,6 +3,11 @@ import discord
 from datetime import datetime
 from config import *
 from pymongo.mongo_client import MongoClient
+from pymongo.server_api import ServerApi
+from bson.json_util import dumps
+from discord.ext import commands
+from discord.utils import get
+from discord.ext import tasks
 
 # Set up tasks
 intents = discord.Intents.default()
@@ -50,8 +55,67 @@ async def on_ready():
     print('We have logged in as {0.user}'.format(client))
     
 def getUnpaidBalances():
-    collection.find({'paid' : False})
-    # Sum up balances per person
+    pipeline = [
+        {
+            "$group": {
+                "_id": "$name",
+                "total": {
+                    "$sum": "$total"
+                }
+            }
+        }
+    ]
+    return collection.aggregate(pipeline)
+                         
+
+async def sendInvoices(channel, author):
+    prompt0 =  "Time to Send Invoices! \n \
+    Please enter the full name of the place y'all ate at:"
+    await channel.send(prompt0)
+    location = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
+
+    prompt1 = "Please enter the date you ate here (Ex: 03/29/2023):"
+    await channel.send(prompt1)
+    date_unformated = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
+
+    date = datetime.strptime(date_unformated.content, "%m/%d/%Y")
+
+    prompt2 = "Please enter how many people ate:"
+    await channel.send(prompt2)
+    amount_of_people = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
+    
+    prompt3 = "Please enter the total amount of tip:"
+    await channel.send(prompt3)
+    tip_unsplit = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
+
+    tip = float(tip_unsplit.content)/float(amount_of_people.content)
+
+    prompt4 = "Please enter the tax rate of the location (Ex: 0.1025):"
+    await channel.send(prompt4)
+    tax_rate = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
+    
+    records = []
+    
+    for i in range(int(amount_of_people.content)):
+        prompt5 = "Please enter the full name of the person you wish to send the invoice to:"
+        await channel.send(prompt5)
+        name = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
+
+        prompt6 = "Please enter the total amount (Pre-Tax) that person spent \n"
+        await channel.send(prompt6)
+        amount = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
+
+        records.append(createRecord(name.content, float(amount.content), location.content, date, float(tax_rate.content), tip, False))
+
+    insertRecords(records)
+    post_prompt = "Invoices created and added to database!"
+    await channel.send(post_prompt)
+
+async def pingBalances(channelID):
+    channel = client.get_channel(channelID)
+    records = getUnpaidBalances()
+    for record in records:
+        await channel.send("<@"+str(getDiscordId(record['_id'])) + "> owes $" + str(round(record['total'],2)) + "to the Bank of Justin!")
 
 @client.event
 async def on_message(message):
@@ -62,50 +126,16 @@ async def on_message(message):
         # If its the Banker
         if message.author.id == BANKER_ID:
             try:
+                if message.content == "totals":
+                    await pingBalances(CHANNEL_ID)
+                        
                 if message.content == "invoices":
                     # Eventually make a function that will allow me to either 
                     # 1. Select a previous name
                     # 2. Add a new name
-
-                    prompt0 =  "Time to Send Invoices! \n \
-                    Please enter the full name of the place y'all ate at:"
-                    await message.channel.send(prompt0)
-                    location = await client.wait_for('message', check=lambda message2: message2.author.id == message.author.id)
-
-                    prompt1 = "Please enter the date you ate here (Ex: 03/29/2023):"
-                    await message.channel.send(prompt1)
-                    date_unformated = await client.wait_for('message', check=lambda message2: message2.author.id == message.author.id)
-
-                    date = datetime.strptime(date_unformated.content, "%m/%d/%Y")
-
-                    prompt2 = "Please enter how many people ate:"
-                    await message.channel.send(prompt2)
-                    amount_of_people = await client.wait_for('message', check=lambda message2: message2.author.id == message.author.id)
                     
-                    prompt3 = "Please enter the total amount of tip:"
-                    await message.channel.send(prompt3)
-                    tip_unsplit = await client.wait_for('message', check=lambda message2: message2.author.id == message.author.id)
-
-                    tip = float(tip_unsplit.content)/float(amount_of_people.content)
-
-                    prompt4 = "Please enter the tax rate of the location (Ex: 0.1025):"
-                    await message.channel.send(prompt4)
-                    tax_rate = await client.wait_for('message', check=lambda message2: message2.author.id == message.author.id)
-                    records = []
-                    for i in range(int(amount_of_people.content)):
-                        prompt5 = "Please enter the full name of the person you wish to send the invoice to:"
-                        await message.channel.send(prompt5)
-                        name = await client.wait_for('message', check=lambda message2: message2.author.id == message.author.id)
-
-                        prompt6 = "Please enter the total amount (Pre-Tax) that person spent \n"
-                        await message.channel.send(prompt6)
-                        amount = await client.wait_for('message', check=lambda message2: message2.author.id == message.author.id)
-
-                        records.append(createRecord(name.content, float(amount.content), location.content, date, float(tax_rate.content), tip, False))
-
-                    insertRecords(records)
-                    post_prompt = "Invoices created and added to database!"
-                    await message.channel.send(post_prompt)
+                    await sendInvoices(message.channel, message.author)
+                    
 
             except discord.errors.Forbidden:
                 pass
