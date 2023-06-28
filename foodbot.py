@@ -111,19 +111,36 @@ async def sendInvoices(channel, author):
     prompt4 = "Please enter the tax rate of the location (Ex: 0.1025):"
     await channel.send(prompt4)
     tax_rate = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
+
+    splitPrompt = "Is the total going to be evenly split?"
+    await channel.send(splitPrompt)
+    split = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
     
     records = []
     
-    for i in range(int(amount_of_people.content)):
-        prompt5 = "Please enter the full name of the person you wish to send the invoice to:"
-        await channel.send(prompt5)
-        name = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
+    if split.content.lower() == "yes" or split.content.lower() == "y":
+        
+        grandTotalPrompt = "What is the grand subtotal?"
+        await channel.send(grandTotalPrompt)
+        grandTotal = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
+        
+        for i in range(int(amount_of_people.content)):
+            prompt5 = "Please enter the full name of the person you wish to send the invoice to:"
+            await channel.send(prompt5)
+            name = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
+            records.append(createRecord(name.content, float(grandTotal.content)/ float(amount_of_people.content), location.content, date, float(tax_rate.content), tip, False))
+    
+    else:
+        for i in range(int(amount_of_people.content)):
+            prompt5 = "Please enter the full name of the person you wish to send the invoice to:"
+            await channel.send(prompt5)
+            name = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
 
-        prompt6 = "Please enter the total amount (Pre-Tax) that person spent \n"
-        await channel.send(prompt6)
-        amount = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
+            prompt6 = "Please enter the total amount (Pre-Tax) that person spent \n"
+            await channel.send(prompt6)
+            amount = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
 
-        records.append(createRecord(name.content, float(amount.content), location.content, date, float(tax_rate.content), tip, False))
+            records.append(createRecord(name.content, float(amount.content), location.content, date, float(tax_rate.content), tip, False))
 
     insertRecords(records)
     post_prompt = "Invoices created and added to database!"
@@ -133,7 +150,7 @@ async def pingBalances(channelID):
     channel = client.get_channel(channelID)
     records = getUnpaidBalances()
     for record in records:
-        await channel.send("<@"+str(getDiscordId(record['_id'])) + "> owes $" + str(round((record['balance']),2)) + " to the Bank of Justin!")
+        await channel.send("<@"+str(getDiscordId(record['_id'])) + "> owes $" + str(round((record['balance']), 2)) + " to the Bank of Justin!")
 
 @client.event
 async def on_message(message):
@@ -156,8 +173,8 @@ async def on_message(message):
                     # 2. Add a new name
                     
                     await sendInvoices(message.channel, message.author)
+                    await pingBalances()
                     
-
             except discord.errors.Forbidden:
                 pass
             
