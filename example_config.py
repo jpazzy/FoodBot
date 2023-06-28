@@ -10,8 +10,9 @@ USER_ID_COLLECTION = 'userid'
 BOT_SECRET = ''
 # Server ID
 GUILD_ID = 0
-
-#Discord ID of the Banker
+# Channel ID that you want the bot to ping to
+CHANNEL_ID = 0
+# Discord ID of the Banker
 BANKER_ID = 0
 
 # Dictionary of Names and Discord ID's
