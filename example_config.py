@@ -17,3 +17,6 @@ BANKER_ID = 0
 
 # Dictionary of Names and Discord ID's
 DISCORD_IDS = {'john doe' : 123}
+
+# Dict of Discord ID's to Names, will change to proper collection later
+NAME_IDS = {123 : 'john doe'}
