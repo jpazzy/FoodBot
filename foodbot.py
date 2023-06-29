@@ -10,8 +10,7 @@ from discord.utils import get
 from discord.ext import tasks
 
 # Set up tasks
-intents = discord.Intents.default()
-intents.members = True
+intents = discord.Intents.all()
 mongo_client = pymongo.MongoClient(CONNECT_STRING)
 db = mongo_client[DATABASE_NAME]
 collection = db[COLLECTION_NAME]
@@ -24,6 +23,9 @@ def getNames():
 # Utilizes a private dictionary that is stored in config.py
 def getDiscordId(name : str):
     return DISCORD_IDS.get(name.lower())
+
+def nameFromID(id):
+    return NAME_IDS.get(id)
 
 # @param name is in format of FirstName LastName (Ex: john doe)
 # @param amount is in format of a decimal value (Ex: 18.75)
@@ -85,6 +87,7 @@ async def payOffBalance(name : str, amount : float):
             # Partially update some record with the amount they paid off
             collection.find_one_and_update({"_id" : record["_id"]}, {"$inc":{"amount_paid" : amount, "balance" : -amount}})
             amount = 0
+            break
             
 async def sendInvoices(channel, author):
     prompt0 =  "Time to Send Invoices! \n \
@@ -128,7 +131,7 @@ async def sendInvoices(channel, author):
             prompt5 = "Please enter the full name of the person you wish to send the invoice to:"
             await channel.send(prompt5)
             name = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
-            records.append(createRecord(name.content, float(grandTotal.content)/ float(amount_of_people.content), location.content, date, float(tax_rate.content), tip, False))
+            records.append(createRecord(name.content, float(grandTotal.content) / float(amount_of_people.content), location.content, date, float(tax_rate.content), tip, False))
     
     else:
         for i in range(int(amount_of_people.content)):
@@ -150,13 +153,54 @@ async def pingBalances(channelID):
     channel = client.get_channel(channelID)
     records = getUnpaidBalances()
     for record in records:
-        await channel.send("<@"+str(getDiscordId(record['_id'])) + "> owes $" + str(round((record['balance']), 2)) + " to the Bank of Justin!")
+        name = getDiscordId(record['_id'])
+        if name == None:
+            name = record["_id"]
+        else:
+            name = "<@"+str(name) + ">"
+            
+        await channel.send(name + " owes $" + str(round((record['balance']), 2)) + " !")
 
+async def getIndivdualBalance(author, channel):
+    #name = "<@" + str(author.id) + ">"
+    name = nameFromID(author.id)
+
+    if name is None:
+        await channel.send("You are not in the default name list. Please contact your banker if you believe this is an accident.")
+        return
+    
+    if collection.count_documents({"paid" : False, "name" : name}) == 0:
+        await channel.send("<@" + str(author.id) +"> You have no outstanding balances!")
+        return
+    
+    pipeline = [
+    {
+        "$match": {
+            "paid": False,
+            "name": name,
+        }
+    },
+    {
+        "$group": {
+            "_id": "$name",
+            "balance" : {
+                "$sum" : "$balance" 
+            }
+        }
+    }
+    ]
+    records = collection.aggregate(pipeline)
+    for record in records:
+        await channel.send("<@" + str(author.id) +"> You owe $" + str(round(record["balance"],2)) + " !")
+            
 @client.event
 async def on_message(message):
     if message.author == client.user :
         return
-    # If its a DM
+
+    if message.content.startswith("!balance"):
+        await getIndivdualBalance(message.author,message.channel)
+# If its a DM
     if not message.guild:
         # If its the Banker
         if message.author.id == BANKER_ID:
@@ -165,7 +209,7 @@ async def on_message(message):
                     await pingBalances(CHANNEL_ID)
                         
                 if message.content == "payoff":
-                    await payOffBalance("john", 10.50)
+                    await payOffBalance("john", 30.50)
                     
                 if message.content == "invoices":
                     # Eventually make a function that will allow me to either 
@@ -173,7 +217,7 @@ async def on_message(message):
                     # 2. Add a new name
                     
                     await sendInvoices(message.channel, message.author)
-                    await pingBalances()
+                    await pingBalances(CHANNEL_ID)
                     
             except discord.errors.Forbidden:
                 pass
