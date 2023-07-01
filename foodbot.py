@@ -193,13 +193,25 @@ async def getIndivdualBalance(author, channel):
     for record in records:
         await channel.send("<@" + str(author.id) +"> You owe $" + str(round(record["balance"],2)) + " !")
             
+async def getIndividualDetails(author, channel):
+    name = nameFromID(author.id)
+    records = collection.find({"name" : name})    
+    
+    
+    
 @client.event
 async def on_message(message):
     if message.author == client.user :
         return
 
     if message.content.startswith("!balance"):
-        await getIndivdualBalance(message.author,message.channel)
+        try:
+            await getIndivdualBalance(message.author,message.channel)
+            return
+        except discord.errors.Forbidden:
+                pass
+        
+    
 # If its a DM
     if not message.guild:
         # If its the Banker
@@ -221,5 +233,8 @@ async def on_message(message):
                     
             except discord.errors.Forbidden:
                 pass
-            
+        # DM from a user that is not the banker.
+        else:
+            pass
+        
 client.run(BOT_SECRET)
