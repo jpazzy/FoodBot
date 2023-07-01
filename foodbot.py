@@ -34,10 +34,11 @@ def nameFromID(id):
 # @param tax_rate is a decimal value(Ex: 0.1025) meaning a 10.25% Tax at that location
 # @param tip is a decimal value of that persons portion of the tip (Ex : 6.25)
 # @param paid is a boolean value of if that person already paid that tab (Default = False)
-def createRecord(name : str, amount : float, location : str, date : datetime, tax_rate : float, tip : float, paid : bool = False, amount_paid : float = 0, balance : float = 0):
+def createRecord(name : str, discord_id: str, amount : float, location : str, date : datetime, tax_rate : float, tip : float, paid : bool = False, amount_paid : float = 0, balance : float = 0):
     total = round(round(amount, 2) * (1 + tax_rate) + round(tip, 2) , 2)
     
     record = {  'name': name.lower(),
+                'discord_id': discord_id,
                 'amount': round(amount,2),
                 'location': location.lower(),
                 'date': date,
@@ -131,7 +132,7 @@ async def sendInvoices(channel, author):
             prompt5 = "Please enter the full name of the person you wish to send the invoice to:"
             await channel.send(prompt5)
             name = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
-            records.append(createRecord(name.content, float(grandTotal.content) / float(amount_of_people.content), location.content, date, float(tax_rate.content), tip, False))
+            records.append(createRecord(name.content, str(getDiscordId(name.content)), float(grandTotal.content) / float(amount_of_people.content), location.content, date, float(tax_rate.content), tip, False))
     
     else:
         for i in range(int(amount_of_people.content)):
