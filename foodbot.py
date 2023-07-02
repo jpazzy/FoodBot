@@ -82,11 +82,13 @@ async def payOffBalance(*, id :str = None, name :str = None, amount :float = Non
     # TODO: Raise error if invalid ID or name
     records = collection.find(search).sort("date", -1)
     for record in records:
-        if amount >= record["balance"].to_decimal():
+        print(amount)
+        print(record["balance"].to_decimal())
+        if amount >= float(record["balance"].to_decimal()):
             # Update record
             collection.find_one_and_update({"_id" : record["_id"]}, {"$set":{ "paid" : True, "balance" : 0}})
-            amount -= float(record["balance"])
-        elif amount> 0:
+            amount -= float(str(record["balance"]))
+        elif amount > 0:
             # Partially update some record with the amount they paid off
             sub = Decimal128(str(-amount))
             collection.find_one_and_update({"_id" : record["_id"]}, {"$inc":{ "balance" : sub}})
@@ -164,7 +166,7 @@ async def pingBalances(channelID):
         else:
             name = "<@"+str(name) + ">"
             
-        await channel.send(name + " owes $" + str(round((record['balance']), 2)) + " !")
+        await channel.send(name + " owes $" + str((record['balance'])) + " !")
 
 async def getIndivdualBalance(author, channel):
     name = nameFromID(author.id)
@@ -195,7 +197,7 @@ async def getIndivdualBalance(author, channel):
     ]
     records = collection.aggregate(pipeline)
     for record in records:
-        await channel.send("<@" + str(author.id) +"> You owe $" + str(round(record["balance"],2)) + " !")
+        await channel.send("<@" + str(author.id) +"> You owe $" + str(record["balance"]) + " !")
             
 async def displayIndividualRecords(author, channel):
     records = collection.find({"discord_id" : str(author.id)}).sort("date", -1).limit(5)
@@ -210,7 +212,7 @@ async def displayIndividualRecords(author, channel):
         embed.add_field(name = "Tax Rate", value = record["tax_rate"], inline = False)
         embed.add_field(name = "Tip", value = record["tip"], inline = False)
         embed.add_field(name = "Grand Total", value = record["total"], inline = False)
-        embed.add_field(name = "Balance", value = round(record["balance"], 2), inline=True)
+        embed.add_field(name = "Balance", value = record["balance"], inline=True)
         embed.add_field(name = "Paid", value = record["paid"], inline=True)
 
         embed.set_footer(text="Food Bot by @gollam", icon_url="https://i.imgur.com/N33XA5A.jpeg")
