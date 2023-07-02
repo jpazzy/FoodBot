@@ -1,17 +1,11 @@
-import pymongo
 import discord
 from datetime import datetime
 from config import *
 from pymongo.mongo_client import MongoClient
-from pymongo.server_api import ServerApi
-from bson.json_util import dumps
-from discord.ext import commands
-from discord.utils import get
-from discord.ext import tasks
 
 # Set up tasks
 intents = discord.Intents.all()
-mongo_client = pymongo.MongoClient(CONNECT_STRING)
+mongo_client = MongoClient(CONNECT_STRING)
 db = mongo_client[DATABASE_NAME]
 collection = db[COLLECTION_NAME]
 client = discord.Client(intents=intents)
