@@ -98,7 +98,7 @@ async def sendInvoices(channel, author):
     await channel.send(prompt1)
     date_unformated = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
 
-    date = datetime.strptime(date_unformated.content, "%m/%d/%Y")
+    date = datetime.strptime(date_unformated.content, "%m/%d/%Y").date()
 
     prompt2 = "Please enter how many people ate:"
     await channel.send(prompt2)
@@ -194,12 +194,12 @@ async def getIndivdualBalance(author, channel):
 async def displayIndividualRecords(author, channel):
     records = collection.find({"discord_id" : str(author.id)}).sort("date", -1).limit(5)
     for record in records:
-        embed = discord.Embed(title = record["location"],
+        embed = discord.Embed(title = record["location"].title(),
                             colour=0x00b0f4,
                             timestamp=datetime.now())
         embed.set_thumbnail(url = "https://i.imgur.com/Eib38At.jpg")
 
-        embed.add_field(name = "Date", value = record["date"], inline = False)
+        embed.add_field(name = "Date", value = record["date"].date(), inline = False)
         embed.add_field(name = "Subtotal", value = record["subtotal"], inline = False)
         embed.add_field(name = "Tax Rate", value = record["tax_rate"], inline = False)
         embed.add_field(name = "Tip", value = record["tip"], inline = False)
