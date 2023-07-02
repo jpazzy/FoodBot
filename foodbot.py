@@ -1,7 +1,10 @@
 import discord
+import decimal
+import re
 from datetime import datetime
 from config import *
 from pymongo.mongo_client import MongoClient
+from bson.decimal128 import Decimal128
 
 # Set up tasks
 intents = discord.Intents.all()
@@ -28,19 +31,19 @@ def nameFromID(id):
 # @param tax_rate is a decimal value(Ex: 0.1025) meaning a 10.25% Tax at that location
 # @param tip is a decimal value of that persons portion of the tip (Ex : 6.25)
 # @param paid is a boolean value of if that person already paid that tab (Default = False)
-def createRecord(name : str, discord_id: str, subtotal : float, location : str, date : datetime, tax_rate : float, tip : float, paid : bool = False, balance : float = 0):
+def createRecord(name : str, discord_id: str, subtotal, location : str, date : datetime, tax_rate : float, tip, paid : bool = False, balance = 0):
     total = round(round(subtotal, 2) * (1 + tax_rate) + round(tip, 2) , 2)
     
     record = {  'name': name.lower(),
                 'discord_id': discord_id,
-                'subtotal': round(subtotal,2),
+                'subtotal': Decimal128(round(subtotal,2)),
                 'location': location.lower(),
                 'date': date,
-                'tax_rate': tax_rate,
-                'tip': round(tip, 2),
-                'total': total,
+                'tax_rate': Decimal128(tax_rate),
+                'tip': Decimal128(round(tip, 2)),
+                'total': Decimal128(total),
                 'paid': paid,
-                'balance' : total
+                'balance' : Decimal128(total)
             }   
     return record
 
@@ -69,19 +72,28 @@ def getUnpaidBalances():
     ]
     return collection.aggregate(pipeline)
 
-async def payOffBalance(name : str, amount : float):
-    records = collection.find({"name" : name , "paid" : False})
+async def payOffBalance(*, id :str = None, name :str = None, amount :float = None):
+    search = {}
+    if id:
+        search = {"discord_id" : id , "paid" : False}
+    elif name:
+        search = {"name" : name , "paid" : False}
+
+    # TODO: Raise error if invalid ID or name
+    records = collection.find(search).sort("date", -1)
     for record in records:
-        if amount >= record["balance"]:
+        if amount >= record["balance"].to_decimal():
             # Update record
             collection.find_one_and_update({"_id" : record["_id"]}, {"$set":{ "paid" : True, "balance" : 0}})
             amount -= float(record["balance"])
-        elif amount > 0:
+        elif amount> 0:
             # Partially update some record with the amount they paid off
-            collection.find_one_and_update({"_id" : record["_id"]}, {"$inc":{ "balance" : -amount}})
+            sub = Decimal128(str(-amount))
+            collection.find_one_and_update({"_id" : record["_id"]}, {"$inc":{ "balance" : sub}})
             amount = 0
             break
-            
+    # TODO: Make it so extra amount gets put into Credit Table
+
 async def sendInvoices(channel, author):
     prompt0 =  "Time to Send Invoices! \n \
     Please enter the full name of the place y'all ate at:"
@@ -198,7 +210,7 @@ async def displayIndividualRecords(author, channel):
         embed.add_field(name = "Tax Rate", value = record["tax_rate"], inline = False)
         embed.add_field(name = "Tip", value = record["tip"], inline = False)
         embed.add_field(name = "Grand Total", value = record["total"], inline = False)
-        embed.add_field(name = "Balance", value = record["balance"], inline=True)
+        embed.add_field(name = "Balance", value = round(record["balance"], 2), inline=True)
         embed.add_field(name = "Paid", value = record["paid"], inline=True)
 
         embed.set_footer(text="Food Bot by @gollam", icon_url="https://i.imgur.com/N33XA5A.jpeg")
@@ -210,6 +222,22 @@ async def on_message(message):
     if message.author == client.user :
         return
 
+    if message.content.startswith("!payoff") and message.author.id == BANKER_ID:
+        try:
+            person = ""
+            words = message.content.split(" ")
+            if len(words) == 3 and re.match(r'<@[0-9]{18}>', words[2]):
+                person = words[2]
+                await payOffBalance(id = person[2:20], amount = float(words[1]))
+                
+            elif len(words) == 4:
+                person = words[2] + " " + words[3]
+                await payOffBalance(name = person, amount = float(words[1]))
+            await message.channel.send(person + " has paid the bank!")
+        except discord.errors.Forbidden:
+            pass
+        except ValueError:
+            await message.channel.send("Error: Please enter a valid amount. Ex: !payoff 10.25")
     if message.content.startswith("!balance"):
         try:
             await getIndivdualBalance(message.author, message.channel)
@@ -231,9 +259,6 @@ async def on_message(message):
                 if message.content == "totals":
                     await pingBalances(CHANNEL_ID)
                         
-                if message.content == "payoff":
-                    await payOffBalance("john", 30.50)
-                    
                 if message.content == "invoices":
                     # Eventually make a function that will allow me to either 
                     # 1. Select a previous name
@@ -241,7 +266,6 @@ async def on_message(message):
                     
                     await sendInvoices(message.channel, message.author)
                     await pingBalances(CHANNEL_ID)
-                    
             except discord.errors.Forbidden:
                 pass
         # DM from a user that is not the banker.
