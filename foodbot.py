@@ -28,26 +28,24 @@ def nameFromID(id):
     return NAME_IDS.get(id)
 
 # @param name is in format of FirstName LastName (Ex: john doe)
-# @param amount is in format of a decimal value (Ex: 18.75)
+# @param subtotal is in format of a decimal value (Ex: 18.75)
 # @param location is a string of Restaurant Name (Ex: Hai Di Lao)
 # @param date is a date formated datetime object
 # @param tax_rate is a decimal value(Ex: 0.1025) meaning a 10.25% Tax at that location
 # @param tip is a decimal value of that persons portion of the tip (Ex : 6.25)
 # @param paid is a boolean value of if that person already paid that tab (Default = False)
-def createRecord(name : str, discord_id: str, amount : float, location : str, date : datetime, tax_rate : float, tip : float, paid : bool = False, amount_paid : float = 0, balance : float = 0):
-    total = round(round(amount, 2) * (1 + tax_rate) + round(tip, 2) , 2)
+def createRecord(name : str, discord_id: str, subtotal : float, location : str, date : datetime, tax_rate : float, tip : float, paid : bool = False, balance : float = 0):
+    total = round(round(subtotal, 2) * (1 + tax_rate) + round(tip, 2) , 2)
     
     record = {  'name': name.lower(),
                 'discord_id': discord_id,
-                'amount': round(amount,2),
+                'subtotal': round(subtotal,2),
                 'location': location.lower(),
                 'date': date,
                 'tax_rate': tax_rate,
-                'tip': round(tip, 2) ,
-                'subtotal' : amount,
+                'tip': round(tip, 2),
                 'total': total,
                 'paid': paid,
-                'amount_paid': amount_paid,
                 'balance' : total
             }   
     return record
@@ -82,11 +80,11 @@ async def payOffBalance(name : str, amount : float):
     for record in records:
         if amount >= record["balance"]:
             # Update record
-            collection.find_one_and_update({"_id" : record["_id"]}, {"$set":{ "paid" : True, "amount_paid" : record["total"], "balance" : 0}})
+            collection.find_one_and_update({"_id" : record["_id"]}, {"$set":{ "paid" : True, "balance" : 0}})
             amount -= float(record["balance"])
         elif amount > 0:
             # Partially update some record with the amount they paid off
-            collection.find_one_and_update({"_id" : record["_id"]}, {"$inc":{"amount_paid" : amount, "balance" : -amount}})
+            collection.find_one_and_update({"_id" : record["_id"]}, {"$inc":{ "balance" : -amount}})
             amount = 0
             break
             
@@ -142,9 +140,9 @@ async def sendInvoices(channel, author):
 
             prompt6 = "Please enter the total amount (Pre-Tax) that person spent \n"
             await channel.send(prompt6)
-            amount = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
+            subtotal = await client.wait_for('message', check=lambda message2: message2.author.id == author.id)
 
-            records.append(createRecord(name.content, float(amount.content), location.content, date, float(tax_rate.content), tip, False))
+            records.append(createRecord(name.content, float(subtotal.content), location.content, date, float(tax_rate.content), tip, False))
 
     insertRecords(records)
     post_prompt = "Invoices created and added to database!"
@@ -163,7 +161,6 @@ async def pingBalances(channelID):
         await channel.send(name + " owes $" + str(round((record['balance']), 2)) + " !")
 
 async def getIndivdualBalance(author, channel):
-    #name = "<@" + str(author.id) + ">"
     name = nameFromID(author.id)
 
     if name is None:
@@ -194,12 +191,26 @@ async def getIndivdualBalance(author, channel):
     for record in records:
         await channel.send("<@" + str(author.id) +"> You owe $" + str(round(record["balance"],2)) + " !")
             
-async def getIndividualDetails(author, channel):
-    name = nameFromID(author.id)
-    records = collection.find({"name" : name})    
-    
-    
-    
+async def displayIndividualRecords(author, channel):
+    records = collection.find({"discord_id" : str(author.id)}).sort("date", -1).limit(5)
+    for record in records:
+        embed = discord.Embed(title = record["location"],
+                            colour=0x00b0f4,
+                            timestamp=datetime.now())
+        embed.set_thumbnail(url = "https://i.imgur.com/Eib38At.jpg")
+
+        embed.add_field(name = "Date", value = record["date"], inline = False)
+        embed.add_field(name = "Subtotal", value = record["subtotal"], inline = False)
+        embed.add_field(name = "Tax Rate", value = record["tax_rate"], inline = False)
+        embed.add_field(name = "Tip", value = record["tip"], inline = False)
+        embed.add_field(name = "Grand Total", value = record["total"], inline = False)
+        embed.add_field(name = "Balance", value = record["balance"], inline=True)
+        embed.add_field(name = "Paid", value = record["paid"], inline=True)
+
+        embed.set_footer(text="Food Bot by @gollam", icon_url="https://i.imgur.com/N33XA5A.jpeg")
+
+        await channel.send(embed=embed)
+
 @client.event
 async def on_message(message):
     if message.author == client.user :
@@ -207,11 +218,16 @@ async def on_message(message):
 
     if message.content.startswith("!balance"):
         try:
-            await getIndivdualBalance(message.author,message.channel)
+            await getIndivdualBalance(message.author, message.channel)
             return
         except discord.errors.Forbidden:
                 pass
-        
+    if message.content.startswith("!history"):
+        try:
+            await displayIndividualRecords(message.author, message.channel)
+            return
+        except discord.errors.Forbidden:
+                pass
     
 # If its a DM
     if not message.guild:
