@@ -82,9 +82,7 @@ async def payOffBalance(*, id :str = None, name :str = None, amount :float = Non
     # TODO: Raise error if invalid ID or name
     records = collection.find(search).sort("date", -1)
     for record in records:
-        print(amount)
-        print(record["balance"].to_decimal())
-        if amount >= float(record["balance"].to_decimal()):
+        if amount >= float(str(record["balance"])):
             # Update record
             collection.find_one_and_update({"_id" : record["_id"]}, {"$set":{ "paid" : True, "balance" : 0}})
             amount -= float(str(record["balance"]))
