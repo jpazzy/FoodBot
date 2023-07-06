@@ -222,7 +222,25 @@ async def getIndivdualBalance(author, channel):
     records = collection.aggregate(pipeline)
     for record in records:
         await channel.send("<@" + str(author.id) +"> You owe $" + str(record["balance"]) + " !")
-            
+
+async def payoff(message):
+    try:
+        person = ""
+        words = message.content.split(" ")
+        if len(words) == 3 and re.match(r'<@[0-9]{18}>', words[2]):
+            person = words[2]
+            await payOffBalance(id = person[2:20], amount = float(words[1]))
+        
+        elif len(words) == 4:
+            person = words[2] + " " + words[3]
+            await payOffBalance(name = person, amount = float(words[1]))
+        await message.channel.send(person + " has paid the bank!")
+    except discord.errors.Forbidden:
+        pass
+    except ValueError:
+        await message.channel.send("Error: Please enter a valid amount. Ex: !payoff 10.25")
+    
+
 async def displayIndividualRecords(author, channel):
     records = collection.find({"discord_id" : str(author.id)}).sort("date", -1).limit(5)
     for record in records:
@@ -249,21 +267,8 @@ async def on_message(message):
         return
 
     if message.content.startswith("!payoff") and message.author.id == BANKER_ID:
-        try:
-            person = ""
-            words = message.content.split(" ")
-            if len(words) == 3 and re.match(r'<@[0-9]{18}>', words[2]):
-                person = words[2]
-                await payOffBalance(id = person[2:20], amount = float(words[1]))
-                
-            elif len(words) == 4:
-                person = words[2] + " " + words[3]
-                await payOffBalance(name = person, amount = float(words[1]))
-            await message.channel.send(person + " has paid the bank!")
-        except discord.errors.Forbidden:
-            pass
-        except ValueError:
-            await message.channel.send("Error: Please enter a valid amount. Ex: !payoff 10.25")
+        await payoff(message)
+        return
     if message.content.startswith("!balance"):
         try:
             await getIndivdualBalance(message.author, message.channel)
