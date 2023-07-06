@@ -3,8 +3,7 @@
 CONNECT_STRING= ""
 DATABASE_NAME = 'friend_food'
 COLLECTION_NAME = 'costs'
-USER_ID_COLLECTION = 'userid'
-CREDIT_COLLECTION = 'credit'
+CREDIT_COLLECTION_NAME = 'credit'
 
 #discord
 
