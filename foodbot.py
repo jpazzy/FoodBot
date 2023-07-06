@@ -11,6 +11,7 @@ intents = discord.Intents.all()
 mongo_client = MongoClient(CONNECT_STRING)
 db = mongo_client[DATABASE_NAME]
 collection = db[COLLECTION_NAME]
+credit_collection = db[CREDIT_COLLECTION_NAME]
 client = discord.Client(intents=intents)
 
 # Returns all unique names
@@ -72,11 +73,16 @@ def getUnpaidBalances():
     ]
     return collection.aggregate(pipeline)
 
-async def payOffBalance(*, id :str = None, name :str = None, amount :float = None):
+async def payOffBalance(id :str = None, name :str = None, amount :float = None, key_type :str = "id"):
+    key_types = ["id", "name"]
     search = {}
-    if id:
+
+    if key_type not in key_types:
+        raise ValueError("Invalid key type. Expected one of: %s" % key_types)
+    
+    if key_type == "id":
         search = {"discord_id" : id , "paid" : False}
-    elif name:
+    elif key_type == "name":
         search = {"name" : name , "paid" : False}
 
     # TODO: Raise error if invalid ID or name
@@ -165,6 +171,26 @@ async def pingBalances(channelID):
             name = "<@"+str(name) + ">"
             
         await channel.send(name + " owes $" + str((record['balance'])) + " !")
+
+def getCredit(id):
+    search = {"discord_id" : id }
+    records = collection.find(search)
+    return records
+
+def addCredit(id = None, name = None,  credit = 0, key_type = "id"):
+    key_types = ["id", "name"]
+    search = {}
+
+    if key_type not in key_types:
+        raise ValueError("Invalid key type. Expected one of: %s" % key_types)
+    
+    if key_type == "id":
+        search = {"discord_id" : id , "name" : nameFromID(id)}
+    elif key_type == "name":
+        search = {"discord_id" : None , "name" : name}
+
+    data = {'$inc': {'credit': Decimal128(credit)}}
+    credit_collection.update_one(search, data, upsert = True)
 
 async def getIndivdualBalance(author, channel):
     name = nameFromID(author.id)
