@@ -230,13 +230,7 @@ async def pingBalances(channelID):
         await channel.send(name + " owes $" + str((record["balance"])) + " !")
 
 
-def getCredit(id):
-    search = {"discord_id": id}
-    records = collection.find(search)
-    return records
-
-
-def addCredit(id=None, name=None, credit=0, key_type="id"):
+def getCredit(id=None, name=None, key_type="id"):
     key_types = ["id", "name"]
     search = {}
 
@@ -244,11 +238,26 @@ def addCredit(id=None, name=None, credit=0, key_type="id"):
         raise ValueError("Invalid key type. Expected one of: %s" % key_types)
 
     if key_type == "id":
-        search = {"discord_id": id, "name": nameFromID(id)}
+        search = {"discord_id": str(id)}
     elif key_type == "name":
-        search = {"discord_id": None, "name": name}
+        search = {"name": name}
+    if credit_collection.count_documents(search):
+        return credit_collection.find_one(search)["credit"]
+    return None
 
-    data = {"$inc": {"credit": Decimal128(credit)}}
+
+def addCredit(person=None, credit=0.0, key_type="id"):
+    key_types = ["id", "name"]
+    search = {}
+
+    if key_type not in key_types:
+        raise ValueError("Invalid key type. Expected one of: %s" % key_types)
+
+    if key_type == "id":
+        search = {"discord_id": person, "name": nameFromID(int(person))}
+    elif key_type == "name":
+        search = {"discord_id": None, "name": person}
+    data = {"$inc": {"credit": Decimal128(str(credit))}}
     credit_collection.update_one(search, data, upsert=True)
 
 
@@ -289,11 +298,13 @@ async def payoff(message):
         words = message.content.split(" ")
         if len(words) == 3 and re.match(r"<@[0-9]{18}>", words[2]):
             person = words[2]
-            await payOffBalance(id=person[2:20], amount=float(words[1]))
+            await payOffBalance(
+                str(person[2:20]), amount=float(words[1]), key_type="id"
+            )
 
         elif len(words) == 4:
             person = words[2] + " " + words[3]
-            await payOffBalance(name=person, amount=float(words[1]))
+            await payOffBalance(str(person), amount=float(words[1]), key_type="name")
         await message.channel.send(person + " has paid the bank!")
     except discord.errors.Forbidden:
         pass
@@ -326,6 +337,55 @@ async def displayIndividualRecords(author, channel):
         await channel.send(embed=embed)
 
 
+async def credit(message):
+    words = message.content.split(" ")
+    if words[1] == "balance" and len(words) == 2:
+        credit = getCredit(message.author.id)
+        msg = ""
+        if credit:
+            msg = "<@" + str(message.author.id) + "> has " + str(credit) + " in credit!"
+        else:
+            msg = "<@" + str(message.author.id) + "> has no credit!"
+
+        await message.channel.send(msg)
+        return
+
+    if message.author.id == BANKER_ID:
+        try:
+            if words[1] == "balance" and len(words) == 3:
+                credit = getCredit(words[2][2:20])
+                msg = (
+                    "<@"
+                    + str(message.author.id)
+                    + "> has "
+                    + str(credit)
+                    + " in credit!"
+                )
+                await message.channel.send(msg)
+                return
+
+            if words[1] == "add":
+                if re.match(r"<@[0-9]{18}>", words[2]):
+                    addCredit(words[2][2:20], float(words[3]), key_type="id")
+                    await message.channel.send(
+                        "Added $" + words[3] + " in credit to " + words[2]
+                    )
+                else:
+                    addCredit(
+                        words[2] + " " + words[3], float(words[4]), key_type="name"
+                    )
+                    await message.channel.send(
+                        "Added $"
+                        + words[4]
+                        + " in credit to "
+                        + words[2]
+                        + " "
+                        + words[3]
+                    )
+        except:
+            await message.channel.send("Error in command")
+
+
 @client.event
 async def on_message(message):
     if message.author == client.user:
@@ -343,6 +403,12 @@ async def on_message(message):
     if message.content.startswith("!history"):
         try:
             await displayIndividualRecords(message.author, message.channel)
+            return
+        except discord.errors.Forbidden:
+            pass
+    if message.content.startswith("!credit"):
+        try:
+            await credit(message)
             return
         except discord.errors.Forbidden:
             pass
