@@ -130,7 +130,7 @@ async def sendInvoices(channel, author):
         "message", check=lambda message2: message2.author.id == author.id
     )
 
-    date = datetime.strptime(date_unformated.content, "%m/%d/%Y").date()
+    date = datetime.strptime(date_unformated.content, "%m/%d/%Y")
 
     prompt2 = "Please enter how many people ate:"
     await channel.send(prompt2)
