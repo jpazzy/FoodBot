@@ -53,14 +53,14 @@ def createRecord(
     record = {
         "name": name.lower(),
         "discord_id": discord_id,
-        "subtotal": Decimal128(round(subtotal, 2)),
+        "subtotal": Decimal128(str(round(subtotal, 2))),
         "location": location.lower(),
         "date": date,
-        "tax_rate": Decimal128(tax_rate),
-        "tip": Decimal128(round(tip, 2)),
-        "total": Decimal128(total),
+        "tax_rate": Decimal128(str(tax_rate)),
+        "tip": Decimal128(str(round(tip, 2))),
+        "total": Decimal128(str(total)),
         "paid": paid,
-        "balance": Decimal128(total),
+        "balance": Decimal128(str(total)),
     }
     return record
 
