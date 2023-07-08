@@ -203,6 +203,7 @@ async def sendInvoices(channel, author):
             records.append(
                 createRecord(
                     name.content,
+                    str(getDiscordId(name.content)),
                     float(subtotal.content),
                     location.content,
                     date,
