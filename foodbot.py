@@ -48,7 +48,7 @@ def createRecord(
     paid: bool = False,
     balance=0,
 ):
-    total = round(round(subtotal, 2) * (1 + tax_rate) + round(tip, 2), 2)
+    total = round(round(float(subtotal), 2) * (1 + float(tax_rate)) + round(float(tip), 2), 2)
 
     record = {
         "name": name.lower(),
