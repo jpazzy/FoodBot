@@ -82,9 +82,7 @@ def getUnpaidBalances():
     return collection.aggregate(pipeline)
 
 
-async def payOffBalance(
-    id: str = None, name: str = None, amount: float = None, key_type: str = "id"
-):
+def payOffBalance(person, amount: float, key_type: str = "id"):
     key_types = ["id", "name"]
     search = {}
 
@@ -92,9 +90,9 @@ async def payOffBalance(
         raise ValueError("Invalid key type. Expected one of: %s" % key_types)
 
     if key_type == "id":
-        search = {"discord_id": id, "paid": False}
+        search = {"discord_id": str(person), "paid": False}
     elif key_type == "name":
-        search = {"name": name, "paid": False}
+        search = {"name": str(person), "paid": False}
 
     # TODO: Raise error if invalid ID or name
     records = collection.find(search).sort("date", -1)
@@ -230,7 +228,7 @@ async def pingBalances(channelID):
         await channel.send(name + " owes $" + str((record["balance"])) + " !")
 
 
-def getCredit(id=None, name=None, key_type="id"):
+def getCredit(person, key_type="id"):
     key_types = ["id", "name"]
     search = {}
 
@@ -238,15 +236,15 @@ def getCredit(id=None, name=None, key_type="id"):
         raise ValueError("Invalid key type. Expected one of: %s" % key_types)
 
     if key_type == "id":
-        search = {"discord_id": str(id)}
+        search = {"discord_id": str(person)}
     elif key_type == "name":
-        search = {"name": name}
+        search = {"name": person}
     if credit_collection.count_documents(search):
         return credit_collection.find_one(search)["credit"]
     return None
 
 
-def addCredit(person=None, credit=0.0, key_type="id"):
+def addCredit(person, credit=0.0, key_type="id"):
     key_types = ["id", "name"]
     search = {}
 
@@ -254,7 +252,7 @@ def addCredit(person=None, credit=0.0, key_type="id"):
         raise ValueError("Invalid key type. Expected one of: %s" % key_types)
 
     if key_type == "id":
-        search = {"discord_id": person, "name": nameFromID(int(person))}
+        search = {"discord_id": str(person), "name": nameFromID(int(person))}
     elif key_type == "name":
         search = {"discord_id": None, "name": person}
     data = {"$inc": {"credit": Decimal128(str(credit))}}
@@ -340,7 +338,7 @@ async def displayIndividualRecords(author, channel):
 async def credit(message):
     words = message.content.split(" ")
     if words[1] == "balance" and len(words) == 2:
-        credit = getCredit(message.author.id)
+        credit = getCredit(message.author.id, key_type="id")
         msg = ""
         if credit:
             msg = "<@" + str(message.author.id) + "> has " + str(credit) + " in credit!"
@@ -349,24 +347,38 @@ async def credit(message):
 
         await message.channel.send(msg)
         return
+    if words[1] == "use" and len(words) == 3:
+        try:
+            amount = float(words[2])
+            credit = float(str(getCredit(message.author.id, key_type="id")))
+            if credit:
+                if credit > amount:
+                    payOffBalance(message.author.id, amount, key_type="id")
+                    addCredit(message.author.id, -amount, key_type="id")
+                    await message.channel.send(
+                        "<@" + str(message.author.id) + "> has paid the bank!"
+                    )
+                else:
+                    await message.channel.send(
+                        "Error: You cannot use more credit than you have!"
+                    )
+            else:
+                await message.channel.send("Error: You do not have any credit!")
+
+        except ValueError:
+            await message.channel.send("Error reading amount, please try again!")
 
     if message.author.id == BANKER_ID:
         try:
             if words[1] == "balance" and len(words) == 3:
-                credit = getCredit(words[2][2:20])
-                msg = (
-                    "<@"
-                    + str(message.author.id)
-                    + "> has "
-                    + str(credit)
-                    + " in credit!"
-                )
+                credit = getCredit(words[2][2:20], key_type="id")
+                msg = words[2] + " has " + str(credit) + " in credit!"
                 await message.channel.send(msg)
                 return
 
             if words[1] == "add":
                 if re.match(r"<@[0-9]{18}>", words[2]):
-                    addCredit(words[2][2:20], float(words[3]), key_type="id")
+                    addCredit(words[2][2:20], Decimal128(words[3]), key_type="id")
                     await message.channel.send(
                         "Added $" + words[3] + " in credit to " + words[2]
                     )
