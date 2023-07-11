@@ -48,7 +48,9 @@ def createRecord(
     paid: bool = False,
     balance=0,
 ):
-    total = round(round(float(subtotal), 2) * (1 + float(tax_rate)) + round(float(tip), 2), 2)
+    total = round(
+        round(float(subtotal), 2) * (1 + float(tax_rate)) + round(float(tip), 2), 2
+    )
 
     record = {
         "name": name.lower(),
@@ -353,7 +355,7 @@ async def credit(message):
             amount = float(words[2])
             credit = float(str(getCredit(message.author.id, key_type="id")))
             if credit:
-                if credit > amount:
+                if credit >= amount:
                     payOffBalance(message.author.id, amount, key_type="id")
                     addCredit(message.author.id, -amount, key_type="id")
                     await message.channel.send(
