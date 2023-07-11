@@ -296,16 +296,16 @@ async def getIndivdualBalance(author, channel):
 async def payoff(message):
     try:
         person = ""
+        key_type = "id"
         words = message.content.split(" ")
         if len(words) == 3 and re.match(r"<@[0-9]{18}>", words[2]):
-            person = words[2]
-            await payOffBalance(
-                str(person[2:20]), amount=float(words[1]), key_type="id"
-            )
+            person = words[2][2:20]
 
         elif len(words) == 4:
             person = words[2] + " " + words[3]
-            await payOffBalance(str(person), amount=float(words[1]), key_type="name")
+            key_type = "name"
+
+        payOffBalance(person, float(words[1]), key_type)
         await message.channel.send(person + " has paid the bank!")
     except discord.errors.Forbidden:
         pass
