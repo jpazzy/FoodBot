@@ -1,13 +1,13 @@
-#pymongo
+# pymongo
 # MongoDB database
-CONNECT_STRING= ""
-DATABASE_NAME = 'friend_food'
-COLLECTION_NAME = 'costs'
-CREDIT_COLLECTION_NAME = 'credit'
+CONNECT_STRING = ""
+DATABASE_NAME = "friend_food"
+COLLECTION_NAME = "costs"
+CREDIT_COLLECTION_NAME = "credit"
 
-#discord
+# discord
 
-BOT_SECRET = ''
+BOT_SECRET = ""
 # Server ID
 GUILD_ID = 0
 # Channel ID that you want the bot to ping to
@@ -16,7 +16,7 @@ CHANNEL_ID = 0
 BANKER_ID = 0
 
 # Dictionary of Names and Discord ID's
-DISCORD_IDS = {'john doe' : 123}
+DISCORD_IDS = {"john doe": 123}
 
 # Dict of Discord ID's to Names, will change to proper collection later
-NAME_IDS = {123 : 'john doe'}
+NAME_IDS = {123: "john doe"}
