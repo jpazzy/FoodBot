@@ -297,16 +297,19 @@ async def payoff(message):
     try:
         person = ""
         key_type = "id"
+        name = ""
         words = message.content.split(" ")
         if len(words) == 3 and re.match(r"<@[0-9]{18}>", words[2]):
             person = words[2][2:20]
+            name = "<@" + person + ">"
 
         elif len(words) == 4:
             person = words[2] + " " + words[3]
             key_type = "name"
+            name = person
 
         payOffBalance(person, float(words[1]), key_type)
-        await message.channel.send(person + " has paid the bank!")
+        await message.channel.send(name + " has paid the bank!")
     except discord.errors.Forbidden:
         pass
     except ValueError:
