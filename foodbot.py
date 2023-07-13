@@ -262,35 +262,56 @@ def addCredit(person, credit=0.0, key_type="id"):
     credit_collection.update_one(search, data, upsert=True)
 
 
-async def getIndivdualBalance(author, channel):
-    name = nameFromID(author.id)
+def getBalanceRecord(person, key_type: str = "id"):
+    key_types = ["id", "name"]
+    match_type = ""
+    group_type = ""
+    if key_type not in key_types:
+        raise ValueError("Invalid key type. Expected one of: %s" % key_types)
 
-    if name is None:
+    if key_type == "id":
+        match_type = "discord_id"
+        group_type = "$discord_id"
+    else:
+        match_type = "name"
+        group_type = "$name"
+
+    match = {"$match": {"paid": False, match_type: person}}
+    group = {"$group": {"_id": group_type, "balance": {"$sum": "$balance"}}}
+    pipeline = [match, group]
+    if collection.count_documents({"paid": False, match_type: person}) == 0:
+        return None
+    else:
+        return collection.aggregate(pipeline).next()
+
+
+async def displayIndivdualBalance(channel, person, key_type: str = "id"):
+    key_types = ["id", "name"]
+    if key_type not in key_types:
+        raise ValueError("Invalid key type. Expected one of: %s" % key_types)
+    displayName = ""
+    if key_type == "id":
+        name = nameFromID(person)
+        if name:
+            displayName = "<@" + person + ">"
+    else:
+        id = getDiscordId(person)
+        if id:
+            displayName = "<@" + id + ">"
+    if displayName == "":
         await channel.send(
-            "You are not in the default name list. Please contact your banker if you believe this is an accident."
+            displayName
+            + " You are not in the default name list. Please contact your banker if you believe this is an accident."
         )
         return
 
-    if collection.count_documents({"paid": False, "name": name}) == 0:
-        await channel.send(
-            "<@" + str(author.id) + "> You have no outstanding balances!"
-        )
+    record = getBalanceRecord(person, key_type)
+
+    if record:
+        await channel.send(displayName + " You have no outstanding balances!")
         return
 
-    pipeline = [
-        {
-            "$match": {
-                "paid": False,
-                "name": name,
-            }
-        },
-        {"$group": {"_id": "$name", "balance": {"$sum": "$balance"}}},
-    ]
-    records = collection.aggregate(pipeline)
-    for record in records:
-        await channel.send(
-            "<@" + str(author.id) + "> You owe $" + str(record["balance"]) + " !"
-        )
+    await channel.send(displayName + " You owe $" + str(record["balance"]) + "!")
 
 
 async def payoff(message):
@@ -412,9 +433,11 @@ async def on_message(message):
     if message.content.startswith("!payoff") and message.author.id == BANKER_ID:
         await payoff(message)
         return
-    if message.content.startswith("!balance"):
+    if message.content == "!balance":
         try:
-            await getIndivdualBalance(message.author, message.channel)
+            await displayIndivdualBalance(
+                message.channel, str(message.author.id), key_type="id"
+            )
             return
         except discord.errors.Forbidden:
             pass
