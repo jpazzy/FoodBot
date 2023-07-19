@@ -17,6 +17,15 @@ def getNames():
     return collection.distinct("name")
 
 
+# Utilizes a private dictionary that is stored in config.py
+def getDiscordId(name: str):
+    return DISCORD_IDS.get(name.lower())
+
+
+def nameFromID(id):
+    return NAME_IDS.get(id)
+
+
 # @param name is in format of FirstName LastName (Ex: john doe)
 # @param subtotal is in format of a decimal value (Ex: 18.75)
 # @param location is a string of Restaurant Name (Ex: Hai Di Lao)
@@ -137,7 +146,7 @@ def getCredit(person, key_type="id"):
     return None
 
 
-def addCredit(person, credit=0.0, key_type="id"):
+def addCredit(person, credit, key_type="id"):
     key_types = ["id", "name"]
     search = {}
 
@@ -145,7 +154,7 @@ def addCredit(person, credit=0.0, key_type="id"):
         raise ValueError("Invalid key type. Expected one of: %s" % key_types)
 
     if key_type == "id":
-        search = {"discord_id": str(person), "name": nameFromID(int(person))}
+        search = {"discord_id": str(person), "name": nameFromID(str(person))}
     elif key_type == "name":
         search = {"discord_id": None, "name": person}
     data = {"$inc": {"credit": Decimal128(str(credit))}}

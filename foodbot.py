@@ -7,15 +7,6 @@ intents = discord.Intents.all()
 client = discord.Client(intents=intents)
 
 
-# Utilizes a private dictionary that is stored in config.py
-def getDiscordId(name: str):
-    return DISCORD_IDS.get(name.lower())
-
-
-def nameFromID(id):
-    return NAME_IDS.get(id)
-
-
 @client.event
 async def on_ready():
     print("We have logged in as {0.user}".format(client))
@@ -215,6 +206,35 @@ async def displayIndividualRecords(author, channel):
 
 async def credit(message):
     words = message.content.split(" ")
+    if message.author.id == BANKER_ID:
+        try:
+            if words[1] == "balance" and len(words) == 3:
+                credit = getCredit(words[2][2:20], key_type="id")
+                msg = words[2] + " has " + str(credit) + " in credit!"
+                await message.channel.send(msg)
+                return
+
+            if words[1] == "add":
+                if re.match(r"<@[0-9]{18}>", words[2]):
+                    addCredit(words[2][2:20], Decimal128(words[3]), key_type="id")
+                    await message.channel.send(
+                        "Added $" + words[3] + " in credit to " + words[2]
+                    )
+                else:
+                    addCredit(
+                        words[2] + " " + words[3], Decimal128(words[4]), key_type="name"
+                    )
+                    await message.channel.send(
+                        "Added $"
+                        + words[4]
+                        + " in credit to "
+                        + words[2]
+                        + " "
+                        + words[3]
+                    )
+        except:
+            await message.channel.send("Error in command")
+
     if words[1] == "balance" and len(words) == 2:
         credit = getCredit(message.author.id, key_type="id")
         msg = ""
@@ -245,35 +265,6 @@ async def credit(message):
 
         except ValueError:
             await message.channel.send("Error reading amount, please try again!")
-
-    if message.author.id == BANKER_ID:
-        try:
-            if words[1] == "balance" and len(words) == 3:
-                credit = getCredit(words[2][2:20], key_type="id")
-                msg = words[2] + " has " + str(credit) + " in credit!"
-                await message.channel.send(msg)
-                return
-
-            if words[1] == "add":
-                if re.match(r"<@[0-9]{18}>", words[2]):
-                    addCredit(words[2][2:20], Decimal128(words[3]), key_type="id")
-                    await message.channel.send(
-                        "Added $" + words[3] + " in credit to " + words[2]
-                    )
-                else:
-                    addCredit(
-                        words[2] + " " + words[3], float(words[4]), key_type="name"
-                    )
-                    await message.channel.send(
-                        "Added $"
-                        + words[4]
-                        + " in credit to "
-                        + words[2]
-                        + " "
-                        + words[3]
-                    )
-        except:
-            await message.channel.send("Error in command")
 
 
 @client.event
@@ -319,7 +310,7 @@ async def on_message(message):
                     # 2. Add a new name
 
                     await sendInvoices(message.channel, message.author)
-                    await pingBalances(CHANNEL_ID)
+                    # await pingBalances(CHANNEL_ID)
             except discord.errors.Forbidden:
                 pass
         # DM from a user that is not the banker.
