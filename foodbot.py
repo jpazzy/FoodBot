@@ -189,11 +189,11 @@ async def displayIndividualRecords(author, channel):
         )
         embed.set_thumbnail(url="https://i.imgur.com/Eib38At.jpg")
 
-        embed.add_field(name="Date", value=record["date"].date(), inline=False)
-        embed.add_field(name="Subtotal", value=record["subtotal"], inline=False)
-        embed.add_field(name="Tax Rate", value=record["tax_rate"], inline=False)
-        embed.add_field(name="Tip", value=record["tip"], inline=False)
-        embed.add_field(name="Grand Total", value=record["total"], inline=False)
+        embed.add_field(name="Date", value=record["date"].date(), inline=True)
+        embed.add_field(name="Subtotal", value=record["subtotal"], inline=True)
+        embed.add_field(name="Tax Rate", value=record["tax_rate"], inline=True)
+        embed.add_field(name="Tip", value=record["tip"], inline=True)
+        embed.add_field(name="Grand Total", value=record["total"], inline=True)
         embed.add_field(name="Balance", value=record["balance"], inline=True)
         embed.add_field(name="Paid", value=record["paid"], inline=True)
 
