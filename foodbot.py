@@ -150,10 +150,10 @@ async def displayIndivdualBalance(channel, person, key_type: str = "id"):
     record = getBalanceRecord(person, key_type)
 
     if record:
-        await channel.send(displayName + " You have no outstanding balances!")
+        await channel.send(displayName + " You owe $" + str(record["balance"]) + "!")
         return
 
-    await channel.send(displayName + " You owe $" + str(record["balance"]) + "!")
+    await channel.send(displayName + " You have no outstanding balances!")
 
 
 async def payoff(message):
