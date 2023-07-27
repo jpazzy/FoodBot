@@ -98,7 +98,7 @@ def getBalanceRecord(person, key_type: str = "id"):
         return collection.aggregate(pipeline).next()
 
 
-def payOffBalance(person, amount: float, key_type: str = "id"):
+def payOffBalance(person, amount: Decimal128, key_type: str = "id"):
     key_types = ["id", "name"]
     search = {}
 
@@ -113,17 +113,18 @@ def payOffBalance(person, amount: float, key_type: str = "id"):
     # TODO: Raise error if invalid ID or name
     records = collection.find(search).sort("date", -1)
     for record in records:
-        if amount >= float(str(record["balance"])):
+        if amount.to_decimal() >= record["balance"].to_decimal():
             # Update record
             collection.find_one_and_update(
-                {"_id": record["_id"]}, {"$set": {"paid": True, "balance": 0}}
+                {"_id": record["_id"]},
+                {"$set": {"paid": True, "balance": Decimal128(0)}},
             )
-            amount -= float(str(record["balance"]))
-        elif amount > 0:
+            amount = amount - record["balance"]
+        elif amount.to_decimal() > 0:
             # Partially update some record with the amount they paid off
-            sub = Decimal128(str(-amount))
             collection.find_one_and_update(
-                {"_id": record["_id"]}, {"$inc": {"balance": sub}}
+                {"_id": record["_id"]},
+                {"$inc": {"balance": Decimal128(-amount.to_decimal())}},
             )
             amount = 0
             break
@@ -146,7 +147,7 @@ def getCredit(person, key_type="id"):
     return None
 
 
-def addCredit(person, credit, key_type="id"):
+def addCredit(person, credit: Decimal128, key_type="id"):
     key_types = ["id", "name"]
     search = {}
 
@@ -157,5 +158,5 @@ def addCredit(person, credit, key_type="id"):
         search = {"discord_id": str(person), "name": nameFromID(str(person))}
     elif key_type == "name":
         search = {"discord_id": None, "name": person}
-    data = {"$inc": {"credit": Decimal128(str(credit))}}
+    data = {"$inc": {"credit": credit}}
     credit_collection.update_one(search, data, upsert=True)

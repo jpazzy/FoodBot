@@ -150,10 +150,9 @@ async def displayIndivdualBalance(channel, person, key_type: str = "id"):
     record = getBalanceRecord(person, key_type)
 
     if record:
-        await channel.send(displayName + " You have no outstanding balances!")
+        await channel.send(displayName + " You owe $" + str(record["balance"]) + "!")
         return
-
-    await channel.send(displayName + " You owe $" + str(record["balance"]) + "!")
+    await channel.send(displayName + " You have no outstanding balances!")
 
 
 async def payoff(message):
@@ -170,8 +169,12 @@ async def payoff(message):
             person = words[2] + " " + words[3]
             key_type = "name"
             name = person
-
-        payOffBalance(person, float(words[1]), key_type)
+        else:
+            await message.channel.send(
+                "Error: Please enter the payoff command. Ex: !payoff 10.25 @gollam"
+            )
+            return
+        payOffBalance(person, Decimal128(words[1]), key_type)
         await message.channel.send(name + " has paid the bank!")
     except discord.errors.Forbidden:
         pass
@@ -247,12 +250,12 @@ async def credit(message):
         return
     if words[1] == "use" and len(words) == 3:
         try:
-            amount = float(words[2])
-            credit = float(str(getCredit(message.author.id, key_type="id")))
+            amount = words[2]
+            credit = float(getCredit(message.author.id, key_type="id"))
             if credit:
-                if credit >= amount:
-                    payOffBalance(message.author.id, amount, key_type="id")
-                    addCredit(message.author.id, -amount, key_type="id")
+                if credit >= float(amount):
+                    payOffBalance(message.author.id, Decimal128(amount), key_type="id")
+                    addCredit(message.author.id, Decimal128(-amount), key_type="id")
                     await message.channel.send(
                         "<@" + str(message.author.id) + "> has paid the bank!"
                     )
