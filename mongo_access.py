@@ -117,7 +117,7 @@ def payOffBalance(person, amount: Decimal128, key_type: str = "id"):
             # Update record
             collection.find_one_and_update(
                 {"_id": record["_id"]},
-                {"$set": {"paid": True, "balance": Decimal128(0)}},
+                {"$set": {"paid": True, "balance": Decimal128("0")}},
             )
             amount = amount - record["balance"]
         elif amount.to_decimal() > 0:
