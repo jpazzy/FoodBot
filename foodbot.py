@@ -251,7 +251,7 @@ async def credit(message):
     if words[1] == "use" and len(words) == 3:
         try:
             amount = words[2]
-            credit = float(getCredit(message.author.id, key_type="id"))
+            credit = float(str(getCredit(message.author.id, key_type="id")))
             if credit:
                 if credit >= float(amount):
                     payOffBalance(message.author.id, Decimal128(amount), key_type="id")
