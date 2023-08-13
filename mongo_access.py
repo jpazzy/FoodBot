@@ -8,13 +8,13 @@ from config import *
 
 mongo_client = MongoClient(CONNECT_STRING)
 db = mongo_client[DATABASE_NAME]
-collection = db[COLLECTION_NAME]
-credit_collection = db[CREDIT_COLLECTION_NAME]
+invoice_collection = db[INVOICE_COLLECTION]
+credit_collection = db[CREDIT_COLLECTION]
 
 
 # Returns all unique names
 def getNames():
-    return collection.distinct("name")
+    return invoice_collection.distinct("name")
 
 
 # Utilizes a private dictionary that is stored in config.py
@@ -64,7 +64,7 @@ def createRecord(
 
 
 def insertRecords(records):
-    collection.insert_many(records)
+    invoice_collection.insert_many(records)
 
 
 def getUnpaidBalances():
@@ -72,7 +72,7 @@ def getUnpaidBalances():
         {"$match": {"paid": False}},
         {"$group": {"_id": "$name", "balance": {"$sum": "$balance"}}},
     ]
-    return collection.aggregate(pipeline)
+    return invoice_collection.aggregate(pipeline)
 
 
 def getBalanceRecord(person, key_type: str = "id"):
@@ -92,10 +92,10 @@ def getBalanceRecord(person, key_type: str = "id"):
     match = {"$match": {"paid": False, match_type: person}}
     group = {"$group": {"_id": group_type, "balance": {"$sum": "$balance"}}}
     pipeline = [match, group]
-    if collection.count_documents({"paid": False, match_type: person}) == 0:
+    if invoice_collection.count_documents({"paid": False, match_type: person}) == 0:
         return None
     else:
-        return collection.aggregate(pipeline).next()
+        return invoice_collection.aggregate(pipeline).next()
 
 
 def payOffBalance(person, amount: Decimal128, key_type: str = "id"):
@@ -111,18 +111,18 @@ def payOffBalance(person, amount: Decimal128, key_type: str = "id"):
         search = {"name": str(person), "paid": False}
 
     # TODO: Raise error if invalid ID or name
-    records = collection.find(search).sort("date", -1)
+    records = invoice_collection.find(search).sort("date", -1)
     for record in records:
         if amount.to_decimal() >= record["balance"].to_decimal():
             # Update record
-            collection.find_one_and_update(
+            invoice_collection.find_one_and_update(
                 {"_id": record["_id"]},
                 {"$set": {"paid": True, "balance": Decimal128(0)}},
             )
             amount = amount - record["balance"]
         elif amount.to_decimal() > 0:
             # Partially update some record with the amount they paid off
-            collection.find_one_and_update(
+            invoice_collection.find_one_and_update(
                 {"_id": record["_id"]},
                 {"$inc": {"balance": Decimal128(-amount.to_decimal())}},
             )
