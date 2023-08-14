@@ -106,6 +106,7 @@ def getBalanceRecord(person, key_type: str = "id"):
 def payOffBalance(person, amount: Decimal128, key_type: str = "id"):
     key_types = ["id", "name"]
     search = {}
+    amount = amount.to_decimal()
 
     if key_type not in key_types:
         raise ValueError("Invalid key type. Expected one of: %s" % key_types)
@@ -118,18 +119,18 @@ def payOffBalance(person, amount: Decimal128, key_type: str = "id"):
     # TODO: Raise error if invalid ID or name
     records = invoice_collection.find(search).sort("date", -1)
     for record in records:
-        if amount.to_decimal() >= record["balance"].to_decimal():
+        if amount >= record["balance"].to_decimal():
             # Update record
             invoice_collection.find_one_and_update(
                 {"_id": record["_id"]},
-                {"$set": {"paid": True, "balance": Decimal128(0)}},
+                {"$set": {"paid": True, "balance": Decimal128("0")}},
             )
-            amount = amount - record["balance"]
-        elif amount.to_decimal() > 0:
+            amount -= record["balance"].to_decimal()
+        elif amount > 0:
             # Partially update some record with the amount they paid off
             invoice_collection.find_one_and_update(
                 {"_id": record["_id"]},
-                {"$inc": {"balance": Decimal128(-amount.to_decimal())}},
+                {"$inc": {"balance": Decimal128(-amount)}},
             )
             amount = 0
             break
