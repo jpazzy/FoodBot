@@ -10,20 +10,25 @@ mongo_client = MongoClient(CONNECT_STRING)
 db = mongo_client[DATABASE_NAME]
 invoice_collection = db[INVOICE_COLLECTION]
 credit_collection = db[CREDIT_COLLECTION]
+names_collection = db[NAMES_COLLECTION]
 
 
 # Returns all unique names
 def getNames():
-    return invoice_collection.distinct("name")
+    return names_collection.distinct("name")
 
 
-# Utilizes a private dictionary that is stored in config.py
-def getDiscordId(name: str):
-    return DISCORD_IDS.get(name.lower())
+def getNameRecord(person: str, key_type: str = "id"):
+    key_types = ["id", "name"]
+    if key_type not in key_types:
+        raise ValueError("Invalid key type. Expected one of: %s" % key_types)
 
+    if key_type == "id":
+        search = {"discord_id": person}
+    elif key_type == "name":
+        search = {"name": person}
 
-def nameFromID(id):
-    return NAME_IDS.get(id)
+    return names_collection.find_one(search)
 
 
 # @param name is in format of FirstName LastName (Ex: john doe)
@@ -155,8 +160,10 @@ def addCredit(person, credit: Decimal128, key_type="id"):
         raise ValueError("Invalid key type. Expected one of: %s" % key_types)
 
     if key_type == "id":
-        search = {"discord_id": str(person), "name": nameFromID(str(person))}
+        record = getNameRecord(person, key_type="id")
+        search = {"discord_id": person, "name": record["name"]}
     elif key_type == "name":
         search = {"discord_id": None, "name": person}
+
     data = {"$inc": {"credit": credit}}
     credit_collection.update_one(search, data, upsert=True)

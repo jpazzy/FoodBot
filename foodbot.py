@@ -72,7 +72,7 @@ async def sendInvoices(channel, author):
             records.append(
                 createRecord(
                     name.content,
-                    str(getDiscordId(name.content)),
+                    getNameRecord(name.content, key_type="name")["discord_id"],
                     float(grandTotal.content) / float(amount_of_people.content),
                     location.content,
                     date,
@@ -99,7 +99,7 @@ async def sendInvoices(channel, author):
             records.append(
                 createRecord(
                     name.content,
-                    str(getDiscordId(name.content)),
+                    getNameRecord(name.content, key_type="name")["discord_id"],
                     float(subtotal.content),
                     location.content,
                     date,
@@ -118,11 +118,11 @@ async def pingBalances(channelID):
     channel = client.get_channel(channelID)
     records = getUnpaidBalances()
     for record in records:
-        name = getDiscordId(record["_id"])
-        if name == None:
-            name = record["_id"]
+        name = getNameRecord(record["_id"], key_type="name")
+        if name:
+            name = "<@" + name["discord_id"] + ">"
         else:
-            name = "<@" + str(name) + ">"
+            name = record["_id"]
 
         await channel.send(name + " owes $" + str((record["balance"])) + " !")
 
@@ -132,27 +132,20 @@ async def displayIndivdualBalance(channel, person, key_type: str = "id"):
     if key_type not in key_types:
         raise ValueError("Invalid key type. Expected one of: %s" % key_types)
     displayName = ""
-    if key_type == "id":
-        name = nameFromID(person)
-        if name:
-            displayName = "<@" + person + ">"
+    name_record = getNameRecord(person, key_type)
+    if name_record:
+        displayName = "<@" + name_record["discord_id"] + ">"
     else:
-        id = getDiscordId(person)
-        if id:
-            displayName = "<@" + id + ">"
-    if displayName == "":
+        displayName = person
+
+    balance_record = getBalanceRecord(person, key_type)
+
+    if balance_record:
         await channel.send(
-            displayName
-            + " You are not in the default name list. Please contact your banker if you believe this is an accident."
+            displayName + " You owe $" + str(balance_record["balance"]) + "!"
         )
-        return
-
-    record = getBalanceRecord(person, key_type)
-
-    if record:
-        await channel.send(displayName + " You owe $" + str(record["balance"]) + "!")
-        return
-    await channel.send(displayName + " You have no outstanding balances!")
+    else:
+        await channel.send(displayName + " You have no outstanding balances!")
 
 
 async def payoff(message):
@@ -184,8 +177,12 @@ async def payoff(message):
         )
 
 
-async def displayIndividualRecords(author, channel):
-    records = collection.find({"discord_id": str(author.id)}).sort("date", -1).limit(5)
+async def displayIndividualHistory(author, channel):
+    records = (
+        invoice_collection.find({"discord_id": str(author.id)})
+        .sort("date", -1)
+        .limit(5)
+    )
     for record in records:
         embed = discord.Embed(
             title=record["location"].title(), colour=0x00B0F4, timestamp=datetime.now()
@@ -288,7 +285,7 @@ async def on_message(message):
             pass
     if message.content.startswith("!history"):
         try:
-            await displayIndividualRecords(message.author, message.channel)
+            await displayIndividualHistory(message.author, message.channel)
             return
         except discord.errors.Forbidden:
             pass
