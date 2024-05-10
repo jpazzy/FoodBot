@@ -215,14 +215,14 @@ async def credit(message):
                 return
 
             if words[1] == "add":
-                if re.match(r"<@[0-9]{18}>", words[2]):
-                    addCredit(words[2][2:20], Decimal128(words[3]), key_type="id")
+                if re.match(r"<@[0-9]{18}>", words[3]):
+                    addCredit(words[3][2:20], Decimal128(words[2]), key_type="id")
                     await message.channel.send(
-                        "Added $" + words[3] + " in credit to " + words[2]
+                        "Added $" + words[2] + " in credit to " + words[3]
                     )
                 else:
                     addCredit(
-                        words[2] + " " + words[3], Decimal128(words[4]), key_type="name"
+                        words[3] + " " + words[4], Decimal128(words[2]), key_type="name"
                     )
                     await message.channel.send(
                         "Added $"
