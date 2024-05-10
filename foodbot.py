@@ -177,15 +177,24 @@ async def payoff(message):
         )
 
 
+RED_HEX = 0xFF0000
+GREEN_HEX = 0x00FF00
+
+
 async def displayIndividualHistory(author, channel):
+
     records = (
         invoice_collection.find({"discord_id": str(author.id)})
         .sort("date", -1)
         .limit(5)
     )
+    hex_color = RED_HEX
     for record in records:
+        if record["paid"]:
+            hex_color = GREEN_HEX
+
         embed = discord.Embed(
-            title=record["location"].title(), colour=0x00B0F4, timestamp=datetime.now()
+            title=record["location"].title(), colour=hex_color, timestamp=datetime.now()
         )
         embed.set_thumbnail(url="https://i.imgur.com/Eib38At.jpg")
 
