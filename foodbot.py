@@ -260,10 +260,13 @@ async def credit(message):
             credit = float(str(getCredit(message.author.id, key_type="id")))
             if credit:
                 if credit >= float(amount):
-                    payOffBalance(message.author.id, Decimal128(amount), key_type="id")
                     addCredit(
-                        message.author.id, Decimal128("-" + amount), key_type="id"
+                        str(message.author.id), Decimal128("-" + amount), key_type="id"
                     )
+                    payOffBalance(
+                        str(message.author.id), Decimal128(amount), key_type="id"
+                    )
+
                     await message.channel.send(
                         "<@" + str(message.author.id) + "> has paid the bank!"
                     )
@@ -276,8 +279,8 @@ async def credit(message):
 
         except ValueError:
             await message.channel.send("Error reading amount, please try again!")
-        except:
-            await message.channel.send("Error in command, please try again!")
+        except Exception as e:
+            await message.channel.send(f"""Error in command: {e}\n please try again!""")
 
 
 @client.event

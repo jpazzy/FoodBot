@@ -24,10 +24,9 @@ def getNameRecord(person: str, key_type: str = "id"):
         raise ValueError("Invalid key type. Expected one of: %s" % key_types)
 
     if key_type == "id":
-        search = {"discord_id": person}
+        search = {"discord_id": str(person)}
     elif key_type == "name":
-        search = {"name": person}
-
+        search = {"name": str(person)}
     return names_collection.find_one(search)
 
 
@@ -153,7 +152,7 @@ def getCredit(person, key_type="id"):
     return None
 
 
-def addCredit(person, credit: Decimal128, key_type="id"):
+def addCredit(person: str, credit: Decimal128, key_type="id"):
     key_types = ["id", "name"]
     search = {}
 
@@ -161,10 +160,12 @@ def addCredit(person, credit: Decimal128, key_type="id"):
         raise ValueError("Invalid key type. Expected one of: %s" % key_types)
 
     if key_type == "id":
+
         record = getNameRecord(person, key_type="id")
+        print(record)
         search = {"discord_id": person, "name": record["name"]}
     elif key_type == "name":
         search = {"discord_id": None, "name": person}
-
+    print("TEST1")
     data = {"$inc": {"credit": credit}}
     credit_collection.update_one(search, data, upsert=True)
